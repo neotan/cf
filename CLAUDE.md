@@ -76,7 +76,7 @@ cf/
 ├── usecases/                   # per-command usage-scenario YAML catalogue
 ├── vendor/                     # Vendored tarballs: forge + SDK transformer
 ├── patches/                    # pnpm patches: release publishing + Container image
-│                               # cleanup ownership
+│                               # cleanup ownership + deploy secret retention
 ├── scripts/sync-forge.ts       # re-vendor pipeline (FORGE_REPO=...)
 ├── .github/workflows/          # CI, changesets publish, prerelease, benchmark, review
 ├── pnpm-workspace.yaml         # blockExoticSubdeps + allowBuilds + patches
@@ -681,7 +681,8 @@ When the Forge packages publish to npm: drop their tarballs, switch to npm
 versions, and delete `scripts/sync-forge.ts`.
 
 The containers-shared and deploy-helpers patches stay until those packages defer
-local image cleanup to cf's successful workflow boundary — see "Patched deps".
+local image cleanup to cf's successful workflow boundary and deploy-helpers keeps
+existing secrets on deploy. See "Patched deps".
 
 ## Patched deps
 
@@ -694,7 +695,9 @@ Three dependency patches are registered in `pnpm-workspace.yaml#patchedDependenc
 The Changesets patch permits publishing prerelease state under `latest` and
 suppresses the non-latest-tag warning for that tag. The containers-shared and
 deploy-helpers patches defer local image cleanup until the complete upload
-succeeds so later failures remain retryable.
+succeeds so later failures remain retryable. The deploy-helpers patch also
+always sends `keep_bindings` for secrets on deploy: the versions API used for
+existing Workers otherwise drops secrets that the Build Output does not declare.
 
 ## Common Forge-side Annotations cf Reads
 
