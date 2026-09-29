@@ -28,6 +28,7 @@
     "prebuilt-mode-validation",
     "quiet-delegation-environment",
     "quiet-login-scopes",
+    "quiet-workers-local",
     "search-telemetry",
     "tunnel-diag",
     "tunnel-login",
