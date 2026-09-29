@@ -1,7 +1,8 @@
 diff --git a/dist/index.mjs b/dist/index.mjs
+index 41920834b35118ce0fd6b67c9fbc09b15277cc21..ecd11142487ceb5e671275b5ff32b81b6c1d4a32 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
-@@ -7034,13 +7034,8 @@ async function pushOrResolveImage(config2, container, imageName, imageConfig, bu
+@@ -7038,13 +7038,8 @@ async function pushOrResolveImage(config2, container, imageName, imageConfig, bu
        targetTag: builtImage.localTag,
        accountId,
        complianceConfig: config2,
@@ -16,3 +17,12 @@ diff --git a/dist/index.mjs b/dist/index.mjs
      return "remoteDigest" in imageRef ? imageRef.remoteDigest : imageRef.newTag;
    } catch (error51) {
      if (error51 instanceof Error) {
+@@ -25618,7 +25613,7 @@ async function deployWorker(props, config2, buildResult, callbacks) {
+     compatibility_date: compatibilityDate,
+     compatibility_flags: compatibilityFlags,
+     keepVars,
+-    keepSecrets: keepVars || !!props.secretsFile,
++    keepSecrets: true,
+     logpush: props.logpush,
+     placement,
+     tail_consumers: config2.tail_consumers,

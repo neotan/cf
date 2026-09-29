@@ -48,7 +48,28 @@ describe("cf deploy — keep_vars", () => {
 		const { exitCode } = await runCf(["deploy"]);
 
 		expect(exitCode).toBe(0);
-		expect(upload.metadata?.keep_bindings).toBeUndefined();
+		expect(upload.metadata?.keep_bindings).not.toContain("plain_text");
+		expect(upload.metadata?.keep_bindings).not.toContain("json");
+	});
+
+	it("keeps existing secrets that the Build Output does not declare", async () => {
+		mockExistingWorker();
+		const upload = mockWorkerUpload();
+
+		await seed({
+			".cloudflare/output/v0/config.json": buildOutputRootConfig(),
+			".cloudflare/output/v0/workers/default/worker.config.json":
+				workerConfig(),
+			".cloudflare/output/v0/workers/default/bundle/index.js":
+				"export default { fetch() { return new Response('ok'); } }",
+		});
+
+		const { exitCode } = await runCf(["deploy"]);
+
+		expect(exitCode).toBe(0);
+		expect(upload.metadata?.keep_bindings).toEqual(
+			expect.arrayContaining(["secret_text", "secret_key"])
+		);
 	});
 
 	it("includes keep_bindings in metadata for existing workers when secrets are present", async () => {
