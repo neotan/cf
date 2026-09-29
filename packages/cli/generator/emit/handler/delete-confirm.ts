@@ -3,8 +3,9 @@
  *
  * Triggers when the op is HTTP DELETE or carries forge's
  * `x-forge-require-confirmation` annotation (KV `/bulk/delete`, queue
- * `/purge`, etc.). Bypassed by `--force` or non-interactive contexts
- * (where `--force` is documented as the only opt-out).
+ * `/purge`, etc.). Bypassed only by `--force`; non-interactive contexts
+ * exit with status 1 inside `confirmDelete`, so the emitted early return
+ * handles an interactive decline.
  *
  * `--quiet` is intentionally NOT threaded into `confirmDelete`. It
  * suppresses non-essential output, but does not (and must not)

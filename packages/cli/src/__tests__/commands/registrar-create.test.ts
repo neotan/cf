@@ -6,6 +6,7 @@ import {
 	extensionCandidates,
 	resolveRegistrationSchema,
 } from "../../commands/registrar/registrations/create/extension.js";
+import { CliExit } from "../../lib/cli-exit.js";
 import { writeCachedSchema } from "../../lib/schema-cache.js";
 import { captureOutput } from "../helpers/capture-output.js";
 import { server, setupMsw, TEST_BASE_URL } from "../helpers/msw.js";
@@ -253,7 +254,7 @@ describe("cf registrar registrations create", () => {
 					return true;
 				}
 				process.stderr.write(`? ${options.message} Continue?\n`);
-				return false;
+				throw new CliExit(1);
 			}
 		);
 		promptForAcknowledgementMock.mockReset();
@@ -899,7 +900,7 @@ describe("cf registrar registrations create", () => {
 		const { exitCode } = await create(DOMAIN, ...REQUIRED);
 
 		// Billable and non-refundable: no confirmation, no registration.
-		expect(exitCode).toBe(0);
+		expect(exitCode).toBe(1);
 		expect(registrations).toEqual([]);
 		expect(stderr()).toContain("Review registration");
 		expect(stderr()).toContain("Domain             example.travel");
@@ -932,7 +933,7 @@ describe("cf registrar registrations create", () => {
 
 		const { exitCode } = await create(DOMAIN, ...REQUIRED, "--years", "3");
 
-		expect(exitCode).toBe(0);
+		expect(exitCode).toBe(1);
 		expect(registrations).toEqual([]);
 		expect(stderr()).toMatch(/for 3 years costs GBP 25\.25/);
 	});
@@ -962,7 +963,7 @@ describe("cf registrar registrations create", () => {
 
 		const { exitCode } = await create(DOMAIN, ...REQUIRED_CONTACTS);
 
-		expect(exitCode).toBe(0);
+		expect(exitCode).toBe(1);
 		expect(availabilityChecks).toEqual([
 			{ domains: [DOMAIN] },
 			{ domains: [DOMAIN] },
@@ -1051,7 +1052,7 @@ describe("cf registrar registrations create", () => {
 
 		const { exitCode } = await create("example.win");
 
-		expect(exitCode).toBe(0);
+		expect(exitCode).toBe(1);
 		expect(extensionRequests).toEqual(["win"]);
 		expect(availabilityChecks).toEqual([
 			{ domains: ["example.win"] },
@@ -1237,7 +1238,7 @@ describe("cf registrar registrations create", () => {
 
 		const { exitCode } = await create("example.ai", ...REQUIRED);
 
-		expect(exitCode).toBe(0);
+		expect(exitCode).toBe(1);
 		expect(registrations).toEqual([]);
 		expect(stderr()).toContain("Registration term  2 years");
 		expect(stderr()).toContain("Due now            USD 18.00");
@@ -2422,7 +2423,7 @@ describe("cf registrar registrations create", () => {
 			"12345678"
 		);
 
-		expect(exitCode).toBe(0);
+		expect(exitCode).toBe(1);
 		expect(stderr()).toMatch(
 			/Registry Details · Registrant Type\s+UK Limited Company \(LTD\)/
 		);
