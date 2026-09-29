@@ -503,7 +503,7 @@ break at sunset; surfacing them encourages users to adopt doomed paths.
 
 ### Confirmation, force, batching
 
-- DELETE operations get a `confirmDelete` prompt unless `--force` is passed. `--quiet` never confirms a destructive action. Non-interactive/CI contexts print the prompt and `pass --force` hint, then abort the handler.
+- DELETE operations get a `confirmDelete` prompt unless `--force` is passed. `--quiet` never confirms a destructive action. Non-interactive/CI contexts print the prompt and `pass --force` hint, then exit with status 1 without calling the API.
 - `--force` / `-f` is auto-emitted for DELETE ops that don't already
   have a forge `force` flag (cascade-delete semantics override).
 - Forge `x-forge-require-confirmation: 'This operation …'`

@@ -244,10 +244,17 @@ describe("prompt", () => {
 	});
 
 	describe("confirmDelete non-interactive without --force aborts", () => {
-		it("returns false and writes a hint to stderr", async () => {
+		const nonInteractiveRefusal = {
+			name: "CliExit",
+			code: 1,
+			cancelled: false,
+		};
+
+		it("exits with an error and writes a hint to stderr", async () => {
 			setTTY(false);
-			const result = await confirmDelete();
-			expect(result).toBe(false);
+			await expect(confirmDelete()).rejects.toMatchObject(
+				nonInteractiveRefusal
+			);
 			const output = writtenStderr.join("");
 			expect(output).toContain("This permanently deletes the resource");
 			expect(output).toContain("pass --force to confirm");
@@ -255,22 +262,24 @@ describe("prompt", () => {
 
 		it("surfaces a forge-supplied message verbatim", async () => {
 			setTTY(false);
-			const result = await confirmDelete({
-				message: "This operation drops every message in the queue.",
-			});
-			expect(result).toBe(false);
+			await expect(
+				confirmDelete({
+					message: "This operation drops every message in the queue.",
+				})
+			).rejects.toMatchObject(nonInteractiveRefusal);
 			const output = writtenStderr.join("");
 			expect(output).toContain(
 				"This operation drops every message in the queue. Continue?"
 			);
 		});
 
-		it("returns false in CI env even with a TTY", async () => {
+		it("exits with an error in CI env even with a TTY", async () => {
 			setTTY(true);
 			ciInfo.isCI = true;
 			process.env.CI = "1";
-			const result = await confirmDelete();
-			expect(result).toBe(false);
+			await expect(confirmDelete()).rejects.toMatchObject(
+				nonInteractiveRefusal
+			);
 			// Proves the CI branch ran rather than a prompt resolving falsy.
 			expect(writtenStderr.join("")).toContain("pass --force to confirm");
 			expect(clack.confirm).not.toHaveBeenCalled();
