@@ -1,9 +1,10 @@
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	normalizeSpawnExit,
+	parseBinaryToken,
 	shouldRelaySignal,
 	spawnImpl,
 } from "../../../commands/dev/spawn.js";
@@ -151,6 +152,46 @@ describe("spawnImpl", () => {
 		const result = await spawnImpl(fake, "dev", []);
 		expect(result).toEqual({ exitCode: 143, signal: "SIGTERM" });
 	});
+
+	describe("npm delegates on Windows", () => {
+		afterEach(() => vi.restoreAllMocks());
+
+		it.each(["cf-wrangler.js", "cf-vite"])(
+			"runs %s under the current Node executable",
+			async (binaryName) => {
+				vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+				const dir = mkdtempSync(join(tmpdir(), "cf-spawn-node-"));
+				const argFile = join(dir, "argv");
+				// Left without an executable bit, so spawning the script itself fails.
+				const binPath = join(dir, binaryName);
+				writeFileSync(
+					binPath,
+					`#!/usr/bin/env node\nrequire("node:fs").writeFileSync(${JSON.stringify(argFile)}, JSON.stringify(process.argv.slice(2)));\nprocess.exit(7);\n`
+				);
+				const impl: KnownImpl = {
+					ecosystem: "npm",
+					pkg: "wrangler",
+					description: "Test fixture",
+					manifest: "package.json",
+					binary: () => binPath,
+					installHint: "(test fixture)",
+				};
+
+				const result = await spawnImpl(
+					{ impl, binary: binPath, manifestPath: "(test)" },
+					"build",
+					["--mode", "a b&c"]
+				);
+
+				expect(result).toEqual({ exitCode: 7 });
+				expect(JSON.parse(readFileSync(argFile, "utf-8"))).toEqual([
+					"build",
+					"--mode",
+					"a b&c",
+				]);
+			}
+		);
+	});
 });
 
 describe("normalizeSpawnExit", () => {
@@ -169,6 +210,33 @@ describe("normalizeSpawnExit", () => {
 			);
 		}
 	);
+});
+
+describe("parseBinaryToken", () => {
+	it("runs npm delegates under the current Node executable on Windows", () => {
+		expect(
+			parseBinaryToken("C:\\p\\bin\\cf-wrangler.js", "npm", "win32")
+		).toEqual({
+			command: process.execPath,
+			prefixArgs: ["C:\\p\\bin\\cf-wrangler.js"],
+		});
+	});
+
+	it("spawns other binaries directly", () => {
+		expect(parseBinaryToken("/p/bin/cf-vite", "npm", "linux")).toEqual({
+			command: "/p/bin/cf-vite",
+			prefixArgs: [],
+		});
+		expect(
+			parseBinaryToken("C:\\cargo\\bin\\dev.exe", "cargo", "win32")
+		).toEqual({ command: "C:\\cargo\\bin\\dev.exe", prefixArgs: [] });
+		expect(
+			parseBinaryToken("uv:cloudflare-py-dev-server", "pypi", "win32")
+		).toEqual({
+			command: "uv",
+			prefixArgs: ["run", "--no-sync", "cloudflare-py-dev-server"],
+		});
+	});
 });
 
 describe("shouldRelaySignal", () => {

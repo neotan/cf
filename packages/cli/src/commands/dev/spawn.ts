@@ -19,6 +19,7 @@ import { constants } from "node:os";
 import { getCloudflareRegistryEnvironment } from "../../lib/registry.js";
 import type { CommandOutputOptions } from "../../lib/autoconfig.js";
 import type { DiscoveredImpl } from "./discover.js";
+import type { Ecosystem } from "./known-impls.js";
 
 export interface SpawnResult {
 	exitCode: number;
@@ -87,10 +88,10 @@ export async function spawnImpl(
 		);
 	}
 
-	// PyPI impls under uv use a `uv:<pkg>` sentinel from the discoverer
-	// to signal "invoke via `uv run` rather than the bare binary." Split
-	// it out into the right argv shape for child_process.spawn.
-	const { command, prefixArgs } = parseBinaryToken(binary);
+	const { command, prefixArgs } = parseBinaryToken(
+		binary,
+		discovered.impl.ecosystem
+	);
 
 	const child = spawn(command, [...prefixArgs, verb, ...argv], {
 		// Dev inherits stdout so the implementation owns the terminal. A
@@ -190,18 +191,27 @@ function implEnvironment(
  *
  * Most impls return a plain absolute path (e.g.
  * `/path/to/node_modules/@cloudflare/vite-plugin/bin/cf-vite`) and we
- * spawn it directly. PyPI impls under uv-managed projects return
+ * spawn it directly. On Windows, npm delegates are Node scripts that the
+ * OS cannot execute through their shebang, so they run under cf's own
+ * Node executable instead. PyPI impls under uv-managed projects return
  * `uv:<pkg>` (the discoverer's sentinel), which we expand to
  * `uv run --no-sync <pkg>` so the impl runs in the project's uv
  * environment without paying for a lock-resolution roundtrip.
  */
-function parseBinaryToken(token: string): {
+export function parseBinaryToken(
+	token: string,
+	ecosystem: Ecosystem,
+	platform: NodeJS.Platform = process.platform
+): {
 	command: string;
 	prefixArgs: string[];
 } {
 	if (token.startsWith("uv:")) {
 		const pkg = token.slice("uv:".length);
 		return { command: "uv", prefixArgs: ["run", "--no-sync", pkg] };
+	}
+	if (platform === "win32" && ecosystem === "npm") {
+		return { command: process.execPath, prefixArgs: [token] };
 	}
 	return { command: token, prefixArgs: [] };
 }
