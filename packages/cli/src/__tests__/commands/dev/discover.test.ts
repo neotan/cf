@@ -55,7 +55,7 @@ describe("discoverImpls", () => {
 			expect(results).toHaveLength(1);
 			expect(results[0]?.impl.pkg).toBe("@cloudflare/vite-plugin");
 			expect(results[0]?.binary).toMatch(
-				/node_modules\/@cloudflare\/vite-plugin\/bin\/cf-vite$/
+				/node_modules[\\/]@cloudflare[\\/]vite-plugin[\\/]bin[\\/]cf-vite$/
 			);
 		});
 
