@@ -1,3 +1,5 @@
+import type { PackageManager } from "./workers.js";
+
 export const WORKER_TEMPLATE_DEV_DEPENDENCIES = {
 	"@cloudflare/vite-plugin": "beta",
 	typescript: "^7.0.2",
@@ -8,6 +10,7 @@ export interface WorkerTemplateOptions {
 	name: string;
 	compatibilityDate: string;
 	cfVersion: string;
+	packageManager: PackageManager;
 }
 
 export function renderWorkerTemplate(
@@ -20,6 +23,9 @@ export function renderWorkerTemplate(
 		"src/index.ts": renderEntrypoint(),
 		"tsconfig.json": renderTsconfig(),
 		"vite.config.ts": renderViteConfig(),
+		...(options.packageManager === "pnpm"
+			? { "pnpm-workspace.yaml": renderPnpmWorkspace() }
+			: {}),
 	};
 }
 
@@ -107,6 +113,15 @@ function renderTsconfig(): string {
 		include: ["src", "cloudflare.config.ts", ".cloudflare/types"],
 	};
 	return `${JSON.stringify(tsconfig, null, "\t")}\n`;
+}
+
+function renderPnpmWorkspace(): string {
+	return `# pnpm 11 and later only run dependency build scripts approved here.
+# workerd needs its script to install the local Workers runtime.
+allowBuilds:
+  esbuild: true
+  workerd: true
+`;
 }
 
 function renderGitignore(): string {

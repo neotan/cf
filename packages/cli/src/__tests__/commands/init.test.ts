@@ -153,12 +153,10 @@ describe("cf init", () => {
 		});
 
 		it("treats cf init workers as the same initializer", async () => {
-			const result = await runCf([
-				"init",
-				"workers",
-				"other-app",
-				"--no-install",
-			]);
+			const result = await runCf(
+				["init", "workers", "other-app", "--no-install"],
+				{ npm_config_user_agent: undefined }
+			);
 
 			expect(result.exitCode).toBe(0);
 			expect(readdirSync("other-app").sort()).toEqual(TEMPLATE_FILES);
@@ -181,7 +179,9 @@ describe("cf init", () => {
 			vi.mocked(isNonInteractiveOrCI).mockReturnValue(false);
 			vi.mocked(prompt).mockResolvedValueOnce(".");
 
-			const result = await runCf(["init", "--no-install"]);
+			const result = await runCf(["init", "--no-install"], {
+				npm_config_user_agent: undefined,
+			});
 
 			expect(result.exitCode).toBe(0);
 			expect(prompt).toHaveBeenCalledExactlyOnceWith(
@@ -201,7 +201,9 @@ describe("cf init", () => {
 			vi.mocked(isNonInteractiveOrCI).mockReturnValue(false);
 			vi.mocked(prompt).mockResolvedValueOnce(" prompted-app ");
 
-			const result = await runCf(["init", "--no-install"]);
+			const result = await runCf(["init", "--no-install"], {
+				npm_config_user_agent: undefined,
+			});
 
 			expect(result.exitCode).toBe(0);
 			expect(readdirSync("prompted-app").sort()).toEqual(TEMPLATE_FILES);
@@ -237,7 +239,9 @@ describe("cf init", () => {
 		it("initializes a directory that only contains .git", async () => {
 			await seed({ "repo/.git/HEAD": "ref: refs/heads/main\n" });
 
-			const result = await runCf(["init", "repo", "--no-install"]);
+			const result = await runCf(["init", "repo", "--no-install"], {
+				npm_config_user_agent: undefined,
+			});
 
 			expect(result.exitCode).toBe(0);
 			expect(readdirSync("repo").sort()).toEqual(
@@ -306,6 +310,52 @@ describe("cf init", () => {
 			expect(stdout()).not.toContain("Install dependencies");
 		});
 
+		it("approves the workerd and esbuild build scripts before a pnpm install", async () => {
+			let workspaceAtInstall: string | undefined;
+			vi.mocked(runProjectCommand).mockImplementationOnce(async (_, cwd) => {
+				workspaceAtInstall = readFileSync(
+					join(cwd, "pnpm-workspace.yaml"),
+					"utf8"
+				);
+				return { exitCode: 0 };
+			});
+
+			const result = await runCf(["init", "my-app"], {
+				npm_config_user_agent: PNPM_USER_AGENT,
+			});
+
+			expect(result.exitCode).toBe(0);
+			expect(workspaceAtInstall).toMatch(
+				/^allowBuilds:\n {2}esbuild: true\n {2}workerd: true\n$/m
+			);
+		});
+
+		it("approves build scripts when pnpm is chosen at the prompt", async () => {
+			vi.mocked(select).mockResolvedValueOnce("pnpm");
+
+			const result = await runCf(["init", "my-app"], {
+				npm_config_user_agent: undefined,
+			});
+
+			expect(result.exitCode).toBe(0);
+			expect(readFileSync("my-app/pnpm-workspace.yaml", "utf8")).toContain(
+				"allowBuilds:"
+			);
+		});
+
+		it("approves build scripts for --package-manager pnpm", async () => {
+			const result = await runCf(
+				["init", "my-app", "--package-manager", "pnpm"],
+				{ npm_config_user_agent: undefined }
+			);
+
+			expect(result.exitCode).toBe(0);
+			expect(select).not.toHaveBeenCalled();
+			expect(readFileSync("my-app/pnpm-workspace.yaml", "utf8")).toContain(
+				"allowBuilds:"
+			);
+		});
+
 		it("shows the target directory when prompting for the package manager", async () => {
 			let outputBeforePrompt = "";
 			vi.mocked(select).mockImplementationOnce(async () => {
@@ -337,6 +387,7 @@ describe("cf init", () => {
 				"yarn install",
 				resolve("my-app")
 			);
+			expect(existsSync("my-app/pnpm-workspace.yaml")).toBe(false);
 		});
 
 		it("uses --package-manager without prompting", async () => {
